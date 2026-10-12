@@ -61,7 +61,8 @@ solo. Es cómodo, pero deja la contraseña en disco: decide tú.
 search <texto> [--limit N]       product <id>
 status                           add <id> [cantidad]      set <id> <cantidad>      remove <id>
 confirm                          discard                  cancel
-orders [--limit N]               suggest [--orders N] [--min-share 0.75]
+orders [--limit N]               missing [--orders N] [--min-share 0.5]
+suggest [--orders N] [--min-share 0.75]
 create [--orders N] [--min-share 0.75] [--replace]
 checkout [--slot <id>] [--address <id>]
 pay <checkout_id> --max <euros> --yes
@@ -96,7 +97,7 @@ Los productos a peso (`selling_method` distinto de 0) se piden en kg.
 ```
 
 Herramientas: `doctor`, `search_products`, `cart_status`, `cart_add`, `cart_set`, `cart_confirm`, `cart_discard`,
-`cart_cancel`, `cart_suggest`, `cart_create_from_history`, `checkout_prepare`, `checkout_submit`.
+`cart_cancel`, `cart_missing`, `cart_suggest`, `cart_create_from_history`, `checkout_prepare`, `checkout_submit`.
 
 ## Detalles de la API
 

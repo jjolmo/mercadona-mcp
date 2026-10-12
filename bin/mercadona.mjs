@@ -26,6 +26,7 @@ Carrito activo (el carrito o, si está vacío, un pedido que aún se puede modif
 
 Historial
   orders [--limit N]
+  missing [--orders N] [--min-share 0.5]   Lo habitual que falta (o va en menos cantidad) en el carrito activo
   suggest [--orders N] [--min-share 0.75]
   create [--orders N] [--min-share 0.75] [--replace]
 
@@ -114,6 +115,8 @@ async function run() {
         changes_until: o.changes_until ?? null,
       }));
     }
+    case "missing":
+      return shop.missing({ orders: num(opt.orders, 8), minShare: num(opt["min-share"], 0.5) });
     case "suggest":
       return shop.suggestFromHistory({ orders: num(opt.orders, 8), minShare: num(opt["min-share"], 0.75) });
     case "create":

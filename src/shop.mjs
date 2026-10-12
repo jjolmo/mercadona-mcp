@@ -398,3 +398,21 @@ export async function checkoutSubmit(checkoutId, { yes = false, maxEur } = {}) {
 export async function search(query, limit = 8) {
   return (await m.search(query, limit)).map(product);
 }
+
+/** Lo que se suele comprar (`minShare` de los últimos pedidos) y no está en el carrito activo, o está en menor cantidad. */
+export async function missing({ orders = 8, minShare = 0.5 } = {}) {
+  const t = await activeTarget();
+  const have = new Map();
+  if (t.type !== "none") {
+    for (const l of linesOf(await readTarget(t))) have.set(String(l.product?.id ?? l.product_id), l.quantity);
+  }
+  const plan = await suggestFromHistory({ orders, minShare });
+  const out = { target: describe(t), orders: plan.orders, missing: [], fewer: [] };
+  for (const i of plan.items) {
+    const q = have.get(String(i.id));
+    const item = { ...i, seen: Math.round(i.share * plan.orders) };
+    if (q === undefined) out.missing.push(item);
+    else if (q < i.quantity) out.fewer.push({ ...item, have: q });
+  }
+  return out;
+}

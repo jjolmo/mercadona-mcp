@@ -5,7 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as shop from "./shop.mjs";
 
-const server = new McpServer({ name: "mercadona", version: "0.1.3" });
+const server = new McpServer({ name: "mercadona", version: "0.1.4" });
 
 function tool(name, description, shape, fn) {
   server.tool(name, description, shape, async (args) => {
@@ -42,6 +42,10 @@ tool("cart_discard", "Deshace los cambios que aún no se han confirmado.", {}, (
 
 tool("cart_cancel", "Vacía el carrito, o descarta la edición si se estaba modificando un pedido. No anula pedidos.",
   {}, () => shop.cancel());
+
+tool("cart_missing", "Lo que se suele comprar y no está en el carrito activo, o está en menor cantidad. Solo lee.",
+  { orders: z.number().int().min(1).max(30).optional(), min_share: z.number().min(0).max(1).optional() },
+  ({ orders, min_share }) => shop.missing({ orders, minShare: min_share }));
 
 tool("cart_suggest", "Propone un carrito con lo que se repite en los últimos pedidos, sin tocar nada.",
   { orders: z.number().int().min(1).max(30).optional(), min_share: z.number().min(0).max(1).optional() },
