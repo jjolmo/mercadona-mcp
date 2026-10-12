@@ -58,7 +58,7 @@ solo. Es cómodo, pero deja la contraseña en disco: decide tú.
 ## CLI
 
 ```text
-search <texto> [--limit N]       product <id>
+search <texto> [--limit N]       product <id>       bought <texto> [--orders N]
 status                           add <id> [cantidad]      set <id> <cantidad>      remove <id>
 confirm                          discard                  cancel
 orders [--limit N]               missing [--orders N] [--min-share 0.5]
@@ -84,6 +84,9 @@ esperada. Los cambios quedan como **pendientes** hasta que llamas a:
 
 `cancel` vacía el carrito o descarta la edición de un pedido. No anula pedidos.
 
+`bought` busca en tus pedidos anteriores lo parecido a un texto, con las veces que lo has comprado,
+para repetir lo de siempre antes de elegir en el catálogo.
+
 Los productos a peso (`selling_method` distinto de 0) se piden en kg.
 
 ## Servidor MCP
@@ -96,7 +99,7 @@ Los productos a peso (`selling_method` distinto de 0) se piden en kg.
 }
 ```
 
-Herramientas: `doctor`, `search_products`, `cart_status`, `cart_add`, `cart_set`, `cart_confirm`, `cart_discard`,
+Herramientas: `doctor`, `search_products`, `bought_before`, `cart_status`, `cart_add`, `cart_set`, `cart_confirm`, `cart_discard`,
 `cart_cancel`, `cart_missing`, `cart_suggest`, `cart_create_from_history`, `checkout_prepare`, `checkout_submit`.
 
 ## Detalles de la API

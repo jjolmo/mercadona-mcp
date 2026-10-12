@@ -5,7 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as shop from "./shop.mjs";
 
-const server = new McpServer({ name: "mercadona", version: "0.1.4" });
+const server = new McpServer({ name: "mercadona", version: "0.1.5" });
 
 function tool(name, description, shape, fn) {
   server.tool(name, description, shape, async (args) => {
@@ -23,6 +23,10 @@ tool("doctor", "Comprueba que todo está en regla: web, búsqueda, sesión, pedi
 tool("search_products", "Busca productos en la tienda de tu zona. Devuelve id, precio, si va a peso e imagen.",
   { query: z.string(), limit: z.number().int().min(1).max(30).optional() },
   ({ query, limit }) => shop.search(query, limit ?? 8));
+
+tool("bought_before", "Productos parecidos a un texto que ya se compraron en pedidos anteriores. Mirar antes de search_products para repetir lo de siempre.",
+  { query: z.string(), orders: z.number().int().min(1).max(60).optional() },
+  ({ query, orders }) => shop.bought(query, { orders: orders ?? 30 }));
 
 tool("cart_status", "Estado del carrito activo: el carrito o, si está vacío, un pedido aún modificable. Incluye los cambios sin confirmar.",
   {}, () => shop.status());

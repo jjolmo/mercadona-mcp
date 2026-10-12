@@ -416,3 +416,49 @@ export async function missing({ orders = 8, minShare = 0.5 } = {}) {
   }
   return out;
 }
+
+const norm = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// Cómo suele llamar Mercadona a cosas que se piden con otro nombre ("lechuga en bolsa" = ensalada lavada).
+const SYN = { lechuga: ["ensalada", "lavada", "cogollo"], refresco: ["fresh gas"], cerveza: ["lager"], patata: ["patatas"] };
+const STOP = new Set(["de", "del", "la", "el", "los", "las", "en", "con", "sin", "y", "a", "al", "un", "una", "para", "bolsa", "paquete", "pack"]);
+
+/**
+ * Productos de pedidos anteriores (incluido el abierto) cuyo nombre se parece a `query`, para repetir
+ * lo que ya se compró antes de buscar en el catálogo. Ordena por palabras que coinciden y por veces comprado.
+ */
+export async function bought(query, { orders = 30 } = {}) {
+  const words = norm(query).split(/[^a-z0-9ñ]+/).filter((w) => w.length > 2 && !STOP.has(w));
+  if (!words.length) return { query, orders: 0, items: [] };
+  const stem = (w) => w.replace(/(es|s)$/, "");
+  const picked = [];
+  for (let page = 1; picked.length < orders && page <= 10; page++) {
+    const data = await m.getOrders(page);
+    for (const o of data.results || []) {
+      if (String(o.status_ui ?? o.status ?? "").toLowerCase().includes("cancel")) continue;
+      picked.push(o);
+      if (picked.length >= orders) break;
+    }
+    if (!data.next_page) break;
+  }
+  const stats = new Map();
+  for (const o of picked) {
+    const date = o.start_date ?? o.slot?.start ?? null;
+    for (const l of await allOrderLines(o.order_id ?? o.id)) {
+      const p = l.product ?? {};
+      const name = norm(p.display_name ?? p.name);
+      const score = words.filter((w) => [stem(w), ...(SYN[stem(w)] ?? [])].some((v) => name.includes(v))).length;
+      if (!score) continue;
+      const id = String(l.product_id ?? p.id);
+      const s = stats.get(id) ?? { product: p, score, times: 0, qty: [], last: null };
+      s.times++;
+      s.qty.push(Number(l.ordered_quantity ?? l.quantity ?? 1));
+      if (date && (!s.last || date > s.last)) s.last = date;
+      stats.set(id, s);
+    }
+  }
+  const items = [...stats].map(([id, s]) => ({
+    ...(product(s.product) ?? { id }), id, times: s.times, quantity: median(s.qty), last: s.last, match: s.score / words.length,
+  }));
+  items.sort((a, b) => b.match - a.match || b.times - a.times || String(b.last).localeCompare(String(a.last)));
+  return { query, orders: picked.length, items: items.slice(0, 8) };
+}

@@ -14,6 +14,7 @@ Sesión
 Catálogo
   search <texto> [--limit N]  Busca productos de tu zona
   product <id>
+  bought <texto> [--orders N] Lo parecido que ya has comprado en pedidos anteriores (mirar antes que search)
 
 Carrito activo (el carrito o, si está vacío, un pedido que aún se puede modificar)
   status
@@ -88,6 +89,8 @@ async function run() {
       return { ok: true };
     case "search":
       return shop.search(pos.join(" "), num(opt.limit, 8));
+    case "bought":
+      return shop.bought(pos.join(" "), { orders: num(opt.orders, 30) });
     case "product":
       return shop.product(await shop.m.getProduct(pos[0]));
     case "status":
