@@ -51,9 +51,21 @@ function money(v) {
   return v === undefined || v === null ? null : Number(v);
 }
 
+/** Los carritos de pedido no traen total: se suma precio × cantidad de cada línea. */
+function cartTotal(cart) {
+  const t = cart?.summary?.total;
+  if (t !== undefined && t !== null) return money(t);
+  const sum = linesOf(cart).reduce((acc, l) => {
+    const pi = l.product?.price_instructions ?? l.original_price_instructions ?? {};
+    const unit = Number(pi.selling_method ? pi.reference_price ?? pi.unit_price : pi.unit_price ?? 0);
+    return acc + unit * Number(l.quantity ?? 0);
+  }, 0);
+  return Math.round(sum * 100) / 100;
+}
+
 function summary(cart) {
   return {
-    total: money(cart?.summary?.total ?? cart?.price ?? null),
+    total: cartTotal(cart),
     count: linesOf(cart).length,
     lines: linesOf(cart).map((l) => ({ ...product(l.product ?? {}), quantity: l.quantity })),
   };
@@ -106,7 +118,8 @@ async function readTarget(t) {
 
 async function writeTarget(t, base, lines) {
   const body = { id: base.id, ...(base.version ? { version: base.version } : {}), lines };
-  if (t.type === "cart") return m.putCart(body);
+  // El id de línea solo existe en los pedidos; el carrito normal no lo lleva.
+  if (t.type === "cart") return m.putCart({ ...body, lines: lines.map(({ id, ...l }) => l) });
   return m.putOrderDraft(t.order.id, body);
 }
 
@@ -118,6 +131,7 @@ function describe(t) {
       order_id: t.order.id,
       delivery: t.order.slot?.start ?? t.order.start_date ?? null,
       changes_until: t.order.changes_until ?? null,
+      order_total: money(t.order.summary?.total),
     };
   }
   return { type: "none" };
@@ -162,7 +176,7 @@ async function change(productId, fn) {
       product: info,
       before,
       quantity: qty,
-      total: money(check?.summary?.total),
+      total: cartTotal(check),
     };
   }
   throw new Error("El carrito cambió a la vez desde otro sitio; vuelve a intentarlo.");
@@ -195,7 +209,7 @@ export async function confirm() {
       target: describe(t),
       applied: p?.items ?? [],
       bank_approval: sca ? `El banco pide aprobar el cambio de importe (${sca}). Revísalo en la app de Mercadona o del banco.` : null,
-      total: money(draft?.summary?.total),
+      total: cartTotal(draft),
     };
   }
   pending.clear();

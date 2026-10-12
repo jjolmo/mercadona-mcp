@@ -10,6 +10,20 @@ const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Geck
 
 export const HOME = process.env.MERCADONA_HOME || join(homedir(), ".config", "mercadona-mcp");
 
+// Credenciales opcionales en $MERCADONA_HOME/.env (MERCADONA_EMAIL, MERCADONA_PASSWORD): si están,
+// la sesión se recupera sola cuando caduca. Las variables del entorno tienen prioridad.
+(function loadEnv() {
+  const p = join(HOME, ".env");
+  if (!existsSync(p)) return;
+  for (const line of readFileSync(p, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!m || process.env[m[1]] !== undefined) continue;
+    process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2");
+  }
+})();
+
+export const hasStoredLogin = () => !!(process.env.MERCADONA_EMAIL && process.env.MERCADONA_PASSWORD);
+
 export class AuthError extends Error {}
 export class ApiError extends Error {
   constructor(message, status, body) {
@@ -63,7 +77,7 @@ export class Mercadona {
   }
 
   get loggedIn() {
-    return !!(this.session.refresh_token || this.session.access_token);
+    return !!(this.session.refresh_token || this.session.access_token || hasStoredLogin());
   }
 
   saveSession() {
@@ -92,17 +106,31 @@ export class Mercadona {
 
   /** El refresh token no necesita captcha y Mercadona puede rotarlo: siempre se guarda el nuevo. */
   async refresh() {
-    if (!this.session.refresh_token) throw new AuthError("Sin sesión: falta el refresh token. Ejecuta `mercadona setup`.");
-    const res = await fetch(`${API}/auth/tokens/`, {
-      method: "POST",
-      headers: this.#headers(false),
-      body: JSON.stringify({ refresh_token: this.session.refresh_token }),
-    });
-    if (!res.ok) throw new AuthError(`La sesión ha caducado (${res.status}). Vuelve a ejecutar \`mercadona setup\`.`);
+    const res = this.session.refresh_token
+      ? await fetch(`${API}/auth/tokens/`, {
+          method: "POST",
+          headers: this.#headers(false),
+          body: JSON.stringify({ refresh_token: this.session.refresh_token }),
+        })
+      : null;
+    if (!res?.ok) {
+      if (hasStoredLogin()) return this.relogin();
+      if (!res) throw new AuthError("Sin sesión: falta el refresh token. Ejecuta `mercadona setup`.");
+      throw new AuthError(`La sesión ha caducado (${res.status}). Vuelve a ejecutar \`mercadona setup\`.`);
+    }
     const tok = await res.json();
     this.session.access_token = tok.access_token;
     if (tok.refresh_token) this.session.refresh_token = tok.refresh_token;
     if (tok.customer_id || tok.customer_uuid) this.session.customer_id = tok.customer_uuid ?? tok.customer_id;
+    this.#learnCustomer();
+    this.saveSession();
+  }
+
+  /** Entra de nuevo con las credenciales del .env (abre Chrome sin ventana por el captcha). */
+  async relogin() {
+    const { browserLogin } = await import("./login.mjs");
+    const tok = await browserLogin(process.env.MERCADONA_EMAIL, process.env.MERCADONA_PASSWORD);
+    this.session = { ...this.session, ...Object.fromEntries(Object.entries(tok).filter(([, v]) => v)) };
     this.#learnCustomer();
     this.saveSession();
   }
@@ -123,6 +151,10 @@ export class Mercadona {
 
   async request(method, path, body, { auth = true, retry = true } = {}) {
     if (auth && !this.session.access_token) await this.refresh();
+    if (path.includes("/:me/")) {
+      if (!this.customerId) throw new AuthError("Sin sesión. Ejecuta `mercadona setup`.");
+      path = path.replace("/:me/", `/${this.customerId}/`);
+    }
     const url = `${API}${path}${path.includes("?") ? "&" : "?"}lang=es${this.session.warehouse ? `&wh=${this.session.warehouse}` : ""}`;
     const res = await fetch(url, {
       method,
@@ -149,9 +181,9 @@ export class Mercadona {
     return data;
   }
 
+  /** Ruta del cliente; el id se rellena en `request`, cuando ya hay sesión. */
   cust(suffix) {
-    if (!this.customerId) throw new AuthError("Sin sesión. Ejecuta `mercadona setup`.");
-    return `/customers/${this.customerId}/${suffix}`;
+    return `/customers/:me/${suffix}`;
   }
 
   getCustomer() { return this.request("GET", this.cust("")); }

@@ -51,6 +51,10 @@ Solo lee. Para cada fallo dice cómo arreglarlo.
 
 Si Chrome no está en una ruta estándar, indícala con `CHROME_PATH`.
 
+Opcional: si guardas `MERCADONA_EMAIL` y `MERCADONA_PASSWORD` en `~/.config/mercadona-mcp/.env`
+(con permisos 0600), `setup` no pide nada y, si la sesión llega a caducar, el cliente vuelve a entrar
+solo. Es cómodo, pero deja la contraseña en disco: decide tú.
+
 ## CLI
 
 ```text

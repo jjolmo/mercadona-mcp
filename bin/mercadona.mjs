@@ -6,7 +6,7 @@ import * as shop from "../src/shop.mjs";
 const HELP = `mercadona <orden> [opciones]
 
 Sesión
-  setup --email <correo>      Entra con email y contraseña (contraseña por stdin o MERCADONA_PASSWORD)
+  setup [--email <correo>]    Entra con email y contraseña (stdin, variables o $MERCADONA_HOME/.env)
   setup --paste               Lee por stdin el JSON de localStorage "MO-user" o un refresh token
   whoami | logout
   doctor                      Comprueba que todo está en regla (web, sesión, pedidos, carrito, entrega)
@@ -68,11 +68,12 @@ async function run() {
         if (!text) throw new Error("Pega por stdin el valor de MO-user o el refresh token.");
         return shop.m.setCredentials(parseCredentials(text));
       }
-      if (!opt.email) throw new Error("Falta --email (o usa --paste).");
+      const email = opt.email || process.env.MERCADONA_EMAIL;
+      if (!email) throw new Error("Falta --email (o MERCADONA_EMAIL en el .env, o usa --paste).");
       const password = process.env.MERCADONA_PASSWORD || (await stdin());
       if (!password) throw new Error("Pasa la contraseña por stdin o en MERCADONA_PASSWORD.");
       const { browserLogin } = await import("../src/login.mjs");
-      return shop.m.setCredentials(await browserLogin(opt.email, password));
+      return shop.m.setCredentials(await browserLogin(email, password));
     }
     case "whoami": {
       if (!shop.m.loggedIn) return { ok: false, logged_in: false };
