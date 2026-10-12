@@ -75,8 +75,10 @@ se pueda modificar. Si no hay ninguno de los dos, `add` no hace nada y devuelve 
 Cada `add`, `set` o `remove` relee el carrito y devuelve `ok: true` solo si la cantidad guardada es la
 esperada. Los cambios quedan como **pendientes** hasta que llamas a:
 
-- `confirm`: en un pedido ya hecho, aplica el borrador al pedido. El banco puede pedir aprobar el
-  nuevo importe. En el carrito normal solo los da por buenos.
+- `confirm`: en un pedido ya hecho, aplica el borrador al pedido. Si el banco pide autenticar el
+  nuevo importe (SCA), lo completa en Chrome sin ventana a través de la pasarela; con exención se aprueba
+  solo y, si el banco pide aprobarlo en su app, espera. Devuelve `ok: true` solo si el pedido ya tiene las
+  cantidades nuevas. En el carrito normal solo da por buenos los cambios.
 - `discard`: deshace los cambios pendientes.
 
 `cancel` vacía el carrito o descarta la edición de un pedido. No anula pedidos.

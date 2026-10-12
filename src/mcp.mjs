@@ -5,7 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as shop from "./shop.mjs";
 
-const server = new McpServer({ name: "mercadona", version: "0.1.1" });
+const server = new McpServer({ name: "mercadona", version: "0.1.2" });
 
 function tool(name, description, shape, fn) {
   server.tool(name, description, shape, async (args) => {

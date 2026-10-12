@@ -1,6 +1,6 @@
 {
   "name": "mercadona-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cliente no oficial de tienda.mercadona.es: carrito, edición de pedidos y checkout, como CLI y como servidor MCP.",
   "type": "module",
   "bin": { "mercadona": "bin/mercadona.mjs", "mercadona-mcp": "src/mcp.mjs" },

@@ -201,15 +201,25 @@ export async function confirm() {
   const p = pending.get();
   if (t.type === "order") {
     const draft = await readTarget(t);
+    const wanted = new Map(linesOf(draft).map((l) => [String(l.product?.id ?? l.product_id), l.quantity]));
     const res = await m.putOrderLines(t.order.id, linesOf(draft).map(toWire), t.order.payment_method?.id);
-    pending.clear();
-    const sca = res?.authentication_mode;
+    const { completeOrderAuth } = await import("./sca.mjs");
+    const auth = await completeOrderAuth(m, t.order.id, res);
+    // Solo vale si el pedido real tiene ya las cantidades del borrador.
+    const now = await m.getOrderCart(t.order.id);
+    const got = new Map(linesOf(now).map((l) => [String(l.product?.id ?? l.product_id), l.quantity]));
+    const mismatches = [...new Set([...wanted.keys(), ...got.keys()])]
+      .filter((id) => Math.abs((wanted.get(id) ?? 0) - (got.get(id) ?? 0)) > 1e-6);
+    const applied = mismatches.length === 0;
+    if (applied) pending.clear();
+    const order = await m.getOrder(t.order.id);
     return {
-      ok: true,
-      target: describe(t),
-      applied: p?.items ?? [],
-      bank_approval: sca ? `El banco pide aprobar el cambio de importe (${sca}). Revísalo en la app de Mercadona o del banco.` : null,
-      total: cartTotal(draft),
+      ok: applied,
+      target: describe({ type: "order", order }),
+      applied: applied ? p?.items ?? [] : [],
+      bank_auth: auth,
+      ...(applied ? {} : { reason: "not_applied", message: `El pedido no ha cambiado (autenticación del banco: ${auth}). Los cambios siguen pendientes.` }),
+      order_total: money(order.summary?.total),
     };
   }
   pending.clear();
