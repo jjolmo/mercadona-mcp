@@ -42,7 +42,12 @@ printf '%s' 'tu-contraseña' | node bin/mercadona.mjs setup --email tu@correo.es
 pbpaste | node bin/mercadona.mjs setup --paste
 
 node bin/mercadona.mjs whoami
+node bin/mercadona.mjs doctor
 ```
+
+`doctor` comprueba por orden el entorno (Node, dependencias, Chrome), la web y la búsqueda, la sesión,
+la cuenta y el almacén, los pedidos y sus productos, el carrito, la dirección y los tramos de entrega.
+Solo lee. Para cada fallo dice cómo arreglarlo.
 
 Si Chrome no está en una ruta estándar, indícala con `CHROME_PATH`.
 
@@ -84,7 +89,7 @@ Los productos a peso (`selling_method` distinto de 0) se piden en kg.
 }
 ```
 
-Herramientas: `search_products`, `cart_status`, `cart_add`, `cart_set`, `cart_confirm`, `cart_discard`,
+Herramientas: `doctor`, `search_products`, `cart_status`, `cart_add`, `cart_set`, `cart_confirm`, `cart_discard`,
 `cart_cancel`, `cart_suggest`, `cart_create_from_history`, `checkout_prepare`, `checkout_submit`.
 
 ## Detalles de la API

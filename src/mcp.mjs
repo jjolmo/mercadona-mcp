@@ -17,6 +17,9 @@ function tool(name, description, shape, fn) {
   });
 }
 
+tool("doctor", "Comprueba que todo está en regla: web, búsqueda, sesión, pedidos, carrito, dirección y tramos de entrega.",
+  {}, async () => (await import("./doctor.mjs")).doctor());
+
 tool("search_products", "Busca productos en la tienda de tu zona. Devuelve id, precio, si va a peso e imagen.",
   { query: z.string(), limit: z.number().int().min(1).max(30).optional() },
   ({ query, limit }) => shop.search(query, limit ?? 8));

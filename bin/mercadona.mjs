@@ -9,6 +9,7 @@ Sesión
   setup --email <correo>      Entra con email y contraseña (contraseña por stdin o MERCADONA_PASSWORD)
   setup --paste               Lee por stdin el JSON de localStorage "MO-user" o un refresh token
   whoami | logout
+  doctor                      Comprueba que todo está en regla (web, sesión, pedidos, carrito, entrega)
 
 Catálogo
   search <texto> [--limit N]  Busca productos de tu zona
@@ -78,6 +79,8 @@ async function run() {
       const me = await shop.m.getCustomer();
       return { ok: true, logged_in: true, customer_id: shop.m.customerId, name: me.name, email: me.email, warehouse: shop.m.session.warehouse };
     }
+    case "doctor":
+      return (await import("../src/doctor.mjs")).doctor();
     case "logout":
       shop.m.logout();
       return { ok: true };
