@@ -93,7 +93,8 @@ const pending = {
 };
 
 /** Dónde van los cambios: el carrito si tiene algo, si no un pedido que aún se pueda modificar. */
-export async function activeTarget() {
+export async function activeTarget(only) {
+  if (only === "cart") return { type: "cart", cart: await m.getCart() };
   const p = pending.get();
   if (p?.target?.type === "order") {
     const o = await m.getOrder(p.target.order_id).catch(() => null);
@@ -145,8 +146,8 @@ export async function status() {
 }
 
 /** Cambia la cantidad de un producto y comprueba releyendo que el cambio quedó guardado. */
-async function change(productId, fn) {
-  const t = await activeTarget();
+async function change(productId, fn, only) {
+  const t = await activeTarget(only);
   if (t.type === "none") return { ok: false, reason: "no_cart", message: "No hay carrito ni pedido modificable: no se ha metido nada." };
   const id = String(productId);
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -191,9 +192,10 @@ function journal(t, info, delta) {
   pending.set(p.items.length ? p : null);
 }
 
-export const add = (id, qty = 1) => change(id, (q) => q + qty);
-export const setQuantity = (id, qty) => change(id, () => qty);
-export const remove = (id) => change(id, () => 0);
+// `only = "cart"` obliga a usar el carrito aunque haya un pedido modificable.
+export const add = (id, qty = 1, only) => change(id, (q) => q + qty, only);
+export const setQuantity = (id, qty, only) => change(id, () => qty, only);
+export const remove = (id, only) => change(id, () => 0, only);
 
 /** Da por buenos los cambios. En un pedido ya hecho es cuando de verdad se aplican. */
 export async function confirm() {
@@ -283,14 +285,19 @@ function median(xs) {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
-/** Los productos que aparecen en al menos `minShare` de los últimos `orders` pedidos, con su cantidad típica. */
-export async function suggestFromHistory({ orders = 8, minShare = 0.5 } = {}) {
+/**
+ * Los productos que aparecen en al menos `minShare` de los últimos `orders` pedidos, con su cantidad típica.
+ * Con 0,75 sale la compra "fija"; lo ocasional se añade aparte. Se ignoran pedidos de más de `maxAgeDays`.
+ */
+export async function suggestFromHistory({ orders = 8, minShare = 0.75, maxAgeDays = 365 } = {}) {
   const picked = [];
   for (let page = 1; picked.length < orders && page <= 10; page++) {
     const data = await m.getOrders(page);
     for (const o of data.results || []) {
       const st = String(o.status_ui ?? o.status ?? "").toLowerCase();
       if (st.includes("cancel") || isEditable(o)) continue;
+      const when = Date.parse(o.start_date ?? o.slot?.start ?? "");
+      if (when && Date.now() - when > maxAgeDays * 86400e3) continue;
       picked.push(o);
       if (picked.length >= orders) break;
     }

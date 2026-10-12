@@ -61,8 +61,8 @@ solo. Es cómodo, pero deja la contraseña en disco: decide tú.
 search <texto> [--limit N]       product <id>
 status                           add <id> [cantidad]      set <id> <cantidad>      remove <id>
 confirm                          discard                  cancel
-orders [--limit N]               suggest [--orders N] [--min-share 0.5]
-create [--orders N] [--min-share 0.5] [--replace]
+orders [--limit N]               suggest [--orders N] [--min-share 0.75]
+create [--orders N] [--min-share 0.75] [--replace]
 checkout [--slot <id>] [--address <id>]
 pay <checkout_id> --max <euros> --yes
 ```

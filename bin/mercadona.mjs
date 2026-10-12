@@ -17,7 +17,7 @@ Catálogo
 
 Carrito activo (el carrito o, si está vacío, un pedido que aún se puede modificar)
   status
-  add <id> [cantidad]         Suma cantidad (en kg si el producto va a peso)
+  add <id> [cantidad] [--cart] Suma cantidad (en kg si va a peso); --cart: al carrito aunque haya pedido abierto
   set <id> <cantidad>         Fija la cantidad (0 la quita)
   remove <id>
   confirm                     Da por buenos los cambios; en un pedido hecho, los aplica
@@ -26,8 +26,8 @@ Carrito activo (el carrito o, si está vacío, un pedido que aún se puede modif
 
 Historial
   orders [--limit N]
-  suggest [--orders N] [--min-share 0.5]
-  create [--orders N] [--min-share 0.5] [--replace]
+  suggest [--orders N] [--min-share 0.75]
+  create [--orders N] [--min-share 0.75] [--replace]
 
 Pago
   checkout [--slot <id>] [--address <id>]  Deja el pedido listo: dirección, tramos y total
@@ -92,11 +92,11 @@ async function run() {
     case "status":
       return shop.status();
     case "add":
-      return shop.add(pos[0], num(pos[1], 1));
+      return shop.add(pos[0], num(pos[1], 1), opt.cart ? "cart" : undefined);
     case "set":
-      return shop.setQuantity(pos[0], num(pos[1], 1));
+      return shop.setQuantity(pos[0], num(pos[1], 1), opt.cart ? "cart" : undefined);
     case "remove":
-      return shop.remove(pos[0]);
+      return shop.remove(pos[0], opt.cart ? "cart" : undefined);
     case "confirm":
       return shop.confirm();
     case "discard":
@@ -115,9 +115,9 @@ async function run() {
       }));
     }
     case "suggest":
-      return shop.suggestFromHistory({ orders: num(opt.orders, 8), minShare: num(opt["min-share"], 0.5) });
+      return shop.suggestFromHistory({ orders: num(opt.orders, 8), minShare: num(opt["min-share"], 0.75) });
     case "create":
-      return shop.createFromHistory({ orders: num(opt.orders, 8), minShare: num(opt["min-share"], 0.5), replace: !!opt.replace });
+      return shop.createFromHistory({ orders: num(opt.orders, 8), minShare: num(opt["min-share"], 0.75), replace: !!opt.replace });
     case "checkout":
       return shop.checkoutPrepare({ slotId: opt.slot, addressId: opt.address ? Number(opt.address) : undefined });
     case "pay":

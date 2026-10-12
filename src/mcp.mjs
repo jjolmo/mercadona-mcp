@@ -5,7 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as shop from "./shop.mjs";
 
-const server = new McpServer({ name: "mercadona", version: "0.1.2" });
+const server = new McpServer({ name: "mercadona", version: "0.1.3" });
 
 function tool(name, description, shape, fn) {
   server.tool(name, description, shape, async (args) => {
@@ -28,12 +28,12 @@ tool("cart_status", "Estado del carrito activo: el carrito o, si está vacío, u
   {}, () => shop.status());
 
 tool("cart_add", "Suma una cantidad de un producto al carrito activo y comprueba que quedó guardado. No hace nada si no hay carrito ni pedido modificable.",
-  { product_id: z.string(), quantity: z.number().positive().optional() },
-  ({ product_id, quantity }) => shop.add(product_id, quantity ?? 1));
+  { product_id: z.string(), quantity: z.number().positive().optional(), cart_only: z.boolean().optional() },
+  ({ product_id, quantity, cart_only }) => shop.add(product_id, quantity ?? 1, cart_only ? "cart" : undefined));
 
 tool("cart_set", "Fija la cantidad de un producto en el carrito activo (0 lo quita).",
-  { product_id: z.string(), quantity: z.number().min(0) },
-  ({ product_id, quantity }) => shop.setQuantity(product_id, quantity));
+  { product_id: z.string(), quantity: z.number().min(0), cart_only: z.boolean().optional() },
+  ({ product_id, quantity, cart_only }) => shop.setQuantity(product_id, quantity, cart_only ? "cart" : undefined));
 
 tool("cart_confirm", "Da por buenos los cambios pendientes. En un pedido ya hecho es cuando se aplican de verdad. Llamar solo cuando el usuario lo diga.",
   {}, () => shop.confirm());
