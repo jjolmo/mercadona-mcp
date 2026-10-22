@@ -5,9 +5,14 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as shop from "./shop.mjs";
 
-const server = new McpServer({ name: "mercadona", version: "0.1.5" });
+const server = new McpServer({ name: "mercadona", version: "0.2.0" });
+
+// MERCADONA_MCP_TOOLS="a,b,c": solo se registran esas herramientas (p. ej. para un invitado
+// que solo puede tocar el carrito). Las demas no existen para quien use el servidor.
+const SOLO = process.env.MERCADONA_MCP_TOOLS ? new Set(process.env.MERCADONA_MCP_TOOLS.split(",").map((t) => t.trim())) : null;
 
 function tool(name, description, shape, fn) {
+  if (SOLO && !SOLO.has(name)) return;
   server.tool(name, description, shape, async (args) => {
     try {
       return { content: [{ type: "text", text: JSON.stringify(await fn(args ?? {}), null, 2) }] };

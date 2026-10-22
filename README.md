@@ -115,3 +115,9 @@ Herramientas: `doctor`, `search_products`, `bought_before`, `cart_status`, `cart
 ## Licencia
 
 MIT
+
+## Limitar las herramientas (`MERCADONA_MCP_TOOLS`)
+
+Con `MERCADONA_MCP_TOOLS="search_products,bought_before,cart_status,cart_add,cart_set"` el servidor
+solo registra esas herramientas; el resto (confirmar, pagar, cancelar, checkout…) no existen para
+el cliente. Sirve para dar acceso a otra persona solo al carrito.
