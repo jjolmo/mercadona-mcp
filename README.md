@@ -99,7 +99,7 @@ Los productos a peso (`selling_method` distinto de 0) se piden en kg.
 }
 ```
 
-Herramientas: `doctor`, `search_products`, `bought_before`, `cart_status`, `cart_add`, `cart_set`, `cart_confirm`, `cart_discard`,
+Herramientas: `doctor`, `search_products`, `product_details`, `bought_before`, `cart_status`, `cart_add`, `cart_set`, `cart_confirm`, `cart_discard`,
 `cart_cancel`, `cart_missing`, `cart_suggest`, `cart_create_from_history`, `checkout_prepare`, `checkout_submit`.
 
 ## Detalles de la API

@@ -5,7 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as shop from "./shop.mjs";
 
-const server = new McpServer({ name: "mercadona", version: "0.2.0" });
+const server = new McpServer({ name: "mercadona", version: "0.3.0" });
 
 // MERCADONA_MCP_TOOLS="a,b,c": solo se registran esas herramientas (p. ej. para un invitado
 // que solo puede tocar el carrito). Las demas no existen para quien use el servidor.
@@ -28,6 +28,27 @@ tool("doctor", "Comprueba que todo está en regla: web, búsqueda, sesión, pedi
 tool("search_products", "Busca productos en la tienda de tu zona. Devuelve id, precio, si va a peso e imagen.",
   { query: z.string(), limit: z.number().int().min(1).max(30).optional() },
   ({ query, limit }) => shop.search(query, limit ?? 8));
+
+// Si no hay ingredientes en texto, se adjuntan las fotos para leer la etiqueta.
+if (!SOLO || SOLO.has("product_details")) {
+  server.tool("product_details", "Ficha de un producto: ingredientes, alérgenos, conservación y fotos. Si no trae ingredientes en texto, adjunta las fotos del envase para leerlos en la etiqueta.",
+    { product_id: z.string(), photos: z.boolean().optional() },
+    async ({ product_id, photos }) => {
+      try {
+        const d = await shop.details(product_id);
+        const content = [{ type: "text", text: JSON.stringify(d, null, 2) }];
+        if (photos ?? !d.ingredients) {
+          for (const url of d.photos.slice(0, 4)) {
+            const res = await fetch(`${url}?fit=max&w=1200&h=1200&fm=jpg`);
+            if (res.ok) content.push({ type: "image", mimeType: "image/jpeg", data: Buffer.from(await res.arrayBuffer()).toString("base64") });
+          }
+        }
+        return { content };
+      } catch (e) {
+        return { isError: true, content: [{ type: "text", text: JSON.stringify({ ok: false, error: e.message }) }] };
+      }
+    });
+}
 
 tool("bought_before", "Productos parecidos a un texto que ya se compraron en pedidos anteriores. Mirar antes de search_products para repetir lo de siempre.",
   { query: z.string(), orders: z.number().int().min(1).max(60).optional() },

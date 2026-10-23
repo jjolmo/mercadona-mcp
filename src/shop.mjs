@@ -395,6 +395,26 @@ export async function checkoutSubmit(checkoutId, { yes = false, maxEur } = {}) {
   return { ok: true, total, order: res };
 }
 
+const plain = (html) => (html ? html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim() : null);
+
+/** Ficha completa: ingredientes, alérgenos, conservación y las fotos (la de detrás suele ser la etiqueta). */
+export async function details(id) {
+  const p = await m.getProduct(id);
+  const d = p.details || {};
+  const n = p.nutrition_information || {};
+  return {
+    ...product(p),
+    brand: p.brand ?? d.brand ?? null,
+    origin: p.origin ?? d.origin ?? null,
+    ingredients: plain(n.ingredients),
+    allergens: plain(n.allergens),
+    storage: d.storage_instructions || null,
+    usage: d.usage_instructions || null,
+    mandatory_mentions: d.mandatory_mentions || null,
+    photos: (p.photos || []).map((f) => (f.zoom || f.regular).split("?")[0]),
+  };
+}
+
 export async function search(query, limit = 8) {
   return (await m.search(query, limit)).map(product);
 }
