@@ -16,7 +16,7 @@ Catálogo
   product <id>
   bought <texto> [--orders N] Lo parecido que ya has comprado en pedidos anteriores (mirar antes que search)
 
-Carrito activo (el carrito o, si está vacío, un pedido que aún se puede modificar)
+Carrito activo (un pedido que aún se puede modificar o, si no hay, el carrito)
   status
   add <id> [cantidad] [--cart] Suma cantidad (en kg si va a peso); --cart: al carrito aunque haya pedido abierto
   set <id> <cantidad>         Fija la cantidad (0 la quita)
@@ -33,7 +33,7 @@ Historial
 
 Pago
   checkout [--slot <id>] [--address <id>]  Deja el pedido listo: dirección, tramos y total
-  pay <checkout_id> --max <euros> --yes    Hace el pedido (irreversible)
+  pay <checkout_id> --max <euros> --yes    Hace el pedido (cobra; se puede modificar hasta el cierre)
 `;
 
 function parse(argv) {

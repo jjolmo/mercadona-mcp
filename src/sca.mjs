@@ -1,4 +1,4 @@
-// Autenticación del banco (SCA) cuando un cambio de importe la pide.
+// Autenticación del banco (SCA) cuando un cambio de importe o un pedido nuevo la pide.
 // - "redirection": se envía el formulario de la pasarela (Redsys) en Chrome sin ventana y se espera
 //   a que vuelva a la URL de OK o KO. Con exención (p. ej. TRA) el banco aprueba sin pedir nada; si pide
 //   aprobar en la app del banco, se espera mientras quede tiempo.
@@ -11,21 +11,22 @@ const CHROMES = [process.env.CHROME_PATH, "/opt/google/chrome/chrome", "/usr/bin
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function waitStatus(m, orderId, ms) {
+// `base` es `orders/<id>` (cambiar un pedido) o `checkouts/<id>` (hacer uno nuevo).
+async function waitStatus(m, base, ms) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
-    const s = await m.request("GET", m.cust(`orders/${orderId}/status/`)).catch(() => null);
+    const s = await m.request("GET", m.cust(`${base}/status/`)).catch(() => null);
     if (s?.state && s.state !== "pending" && s.state !== "authenticating" && s.state !== "processing_authentication") return s.state;
     await sleep(3000);
   }
   return "timeout";
 }
 
-async function redirect(m, orderId, uuid, ms) {
-  const ok = `${BASE}/user-area/orders/${orderId}?sca=ok`;
-  const ko = `${BASE}/user-area/orders/${orderId}?sca=ko`;
+async function redirect(m, base, back, uuid, ms) {
+  const ok = `${back}?sca=ok`;
+  const ko = `${back}?sca=ko`;
   const auth = await m.request("GET",
-    m.cust(`orders/${orderId}/authentication/?authentication_uuid=${uuid}&ok_url=${encodeURIComponent(ok)}&ko_url=${encodeURIComponent(ko)}`));
+    m.cust(`${base}/authentication/?authentication_uuid=${uuid}&ok_url=${encodeURIComponent(ok)}&ko_url=${encodeURIComponent(ko)}`));
   const { URL_Base: action, ...fields } = auth.params ?? {};
   if (!action) throw new Error("La pasarela de pago no ha devuelto adónde enviar la autenticación.");
   const puppeteer = (await import("puppeteer-core")).default;
@@ -51,13 +52,20 @@ async function redirect(m, orderId, uuid, ms) {
   }
 }
 
-/** Completa la autenticación que pide `res` (respuesta de PUT .../lines/). Devuelve el estado final. */
-export async function completeOrderAuth(m, orderId, res) {
+async function complete(m, base, back, res) {
   const mode = res?.authentication_mode;
   if (!mode) return "not_required";
-  const detail = await m.request("GET", m.cust(`orders/${orderId}/authentication-detail/`)).catch(() => ({}));
+  const detail = await m.request("GET", m.cust(`${base}/authentication-detail/`)).catch(() => ({}));
   const ms = Math.max(30, Math.min(300, Number(detail.remaining_time ?? 240) - 10)) * 1000;
-  if (mode === "rest") return waitStatus(m, orderId, ms);
-  const state = await redirect(m, orderId, res.authentication_uuid, ms);
-  return state === "succeeded" ? waitStatus(m, orderId, 20000).then((s) => (s === "timeout" ? state : s)) : state;
+  if (mode === "rest") return waitStatus(m, base, ms);
+  const state = await redirect(m, base, back, res.authentication_uuid, ms);
+  return state === "succeeded" ? waitStatus(m, base, 20000).then((s) => (s === "timeout" ? state : s)) : state;
 }
+
+/** Completa la autenticación que pide `res` (respuesta de PUT .../lines/). Devuelve el estado final. */
+export const completeOrderAuth = (m, orderId, res) =>
+  complete(m, `orders/${orderId}`, `${BASE}/user-area/orders/${orderId}`, res);
+
+/** Lo mismo al hacer un pedido nuevo (respuesta 202 de POST checkouts/<id>/confirm/). */
+export const completeCheckoutAuth = (m, checkoutId, res) =>
+  complete(m, `checkouts/${checkoutId}`, `${BASE}/checkout/${checkoutId}`, res);

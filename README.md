@@ -70,8 +70,9 @@ pay <checkout_id> --max <euros> --yes
 
 ### El carrito activo
 
-Los cambios van al **carrito** si tiene algo. Si está vacío, van a un **pedido ya hecho** que todavía
-se pueda modificar. Si no hay ninguno de los dos, `add` no hace nada y devuelve `reason: "no_cart"`.
+Los cambios van a un **pedido ya hecho** que todavía se pueda modificar, aunque el carrito tenga cosas
+(`--cart` los manda al carrito). Si no hay ninguno, van al **carrito** si tiene algo. Si no hay ninguno
+de los dos, `add` no hace nada y devuelve `reason: "no_cart"`.
 
 Cada `add`, `set` o `remove` relee el carrito y devuelve `ok: true` solo si la cantidad guardada es la
 esperada. Los cambios quedan como **pendientes** hasta que llamas a:

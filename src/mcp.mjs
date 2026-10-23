@@ -54,7 +54,7 @@ tool("bought_before", "Productos parecidos a un texto que ya se compraron en ped
   { query: z.string(), orders: z.number().int().min(1).max(60).optional() },
   ({ query, orders }) => shop.bought(query, { orders: orders ?? 30 }));
 
-tool("cart_status", "Estado del carrito activo: el carrito o, si está vacío, un pedido aún modificable. Incluye los cambios sin confirmar.",
+tool("cart_status", "Estado del carrito activo: un pedido aún modificable o, si no hay, el carrito. Incluye los cambios sin confirmar.",
   {}, () => shop.status());
 
 tool("cart_add", "Suma una cantidad de un producto al carrito activo y comprueba que quedó guardado. No hace nada si no hay carrito ni pedido modificable.",

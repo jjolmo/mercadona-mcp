@@ -206,7 +206,8 @@ export class Mercadona {
   setCheckoutDelivery(id, addressId, slotId) {
     return this.request("PUT", this.cust(`checkouts/${id}/delivery-info/`), { address: { id: addressId }, slot: { id: slotId } });
   }
-  submitCheckout(id) { return this.request("POST", this.cust(`checkouts/${id}/orders/`)); }
+  // 201 con `order_id`, o 202 con `authentication_mode` si el banco pide autenticar el pago.
+  confirmCheckout(id) { return this.request("POST", this.cust(`checkouts/${id}/confirm/`)); }
   getProduct(id) { return this.request("GET", `/products/${id}/`, undefined, { auth: false }); }
   getRegulars() { return this.request("GET", this.cust("recommendations/myregulars/precision/")); }
 

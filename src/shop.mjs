@@ -92,7 +92,7 @@ const pending = {
   clear: () => writeJson("pending.json", null),
 };
 
-/** Dónde van los cambios: el carrito si tiene algo, si no un pedido que aún se pueda modificar. */
+/** Dónde van los cambios: un pedido que aún se pueda modificar y, si no hay, el carrito si tiene algo. */
 export async function activeTarget(only) {
   if (only === "cart") return { type: "cart", cart: await m.getCart() };
   const p = pending.get();
@@ -100,10 +100,10 @@ export async function activeTarget(only) {
     const o = await m.getOrder(p.target.order_id).catch(() => null);
     if (o && isEditable(o)) return { type: "order", order: o };
   }
-  const cart = await m.getCart();
-  if (linesOf(cart).length) return { type: "cart", cart };
   const o = await editableOrder();
   if (o) return { type: "order", order: o };
+  const cart = await m.getCart();
+  if (linesOf(cart).length) return { type: "cart", cart };
   return { type: "none", cart };
 }
 
@@ -385,14 +385,27 @@ export async function checkoutPrepare({ slotId, addressId } = {}) {
 
 /** Hace el pedido de verdad. Solo con `yes` y con un tope de gasto. */
 export async function checkoutSubmit(checkoutId, { yes = false, maxEur } = {}) {
-  if (!yes) return { ok: false, reason: "needs_yes", message: "Hacer el pedido es irreversible: repite con confirmación explícita." };
+  if (!yes) return { ok: false, reason: "needs_yes", message: "Hacer el pedido cobra: repite con confirmación explícita." };
   const co = await m.getCheckout(checkoutId);
   const total = money(co.summary?.total);
   if (!maxEur || total === null || total > maxEur) {
     return { ok: false, reason: "over_budget", total, max: maxEur ?? null, message: "El total supera el tope (o no se pudo leer)." };
   }
-  const res = await m.submitCheckout(checkoutId);
-  return { ok: true, total, order: res };
+  let res = await m.confirmCheckout(checkoutId);
+  let auth = "not_required";
+  if (res?.authentication_mode) {
+    const { completeCheckoutAuth } = await import("./sca.mjs");
+    auth = await completeCheckoutAuth(m, checkoutId, res);
+    // Tras autenticar, la web vuelve a confirmar y entonces se crea el pedido; si no se autenticó, no sale order_id.
+    res = await m.confirmCheckout(checkoutId).catch((e) => ({ error: e.body ?? e.message }));
+  }
+  const orderId = res?.order_id ?? null;
+  if (!orderId) {
+    return { ok: false, reason: "not_ordered", total, bank_auth: auth, detail: res,
+      message: `No se ha hecho el pedido (autenticación del banco: ${auth}).` };
+  }
+  const order = await m.getOrder(orderId).catch(() => null);
+  return { ok: true, total, bank_auth: auth, order_id: orderId, ...(order ? { target: describe({ type: "order", order }) } : {}) };
 }
 
 const plain = (html) => (html ? html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim() : null);
