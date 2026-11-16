@@ -25,10 +25,19 @@ export function product(p) {
     approx_size: pi.approx_size ?? null,
     min: pi.min_bunch_amount ?? null,
     step: pi.increment_bunch_amount ?? null,
-    available: p.published !== false && !p.unavailable_from,
+    // status "unavailable_in_warehouse": existe en el catálogo pero no en el almacén que reparte aquí
+    available: p.published !== false && !p.unavailable_from && !String(p.status ?? "").startsWith("unavailable"),
     image: image(p),
     url: p.share_url ?? null,
   };
+}
+
+/** Los productos de pedidos antiguos traen la disponibilidad de entonces: se relee del catálogo. */
+async function withFreshAvailability(items) {
+  return Promise.all(items.map(async (i) => {
+    const fresh = product(await m.getProduct(i.id).catch(() => null));
+    return fresh ? { ...i, available: fresh.available, price: fresh.price ?? i.price } : i;
+  }));
 }
 
 function linesOf(cart) {
@@ -150,12 +159,16 @@ async function change(productId, fn, only) {
   const t = await activeTarget(only);
   if (t.type === "none") return { ok: false, reason: "no_cart", message: "No hay carrito ni pedido modificable: no se ha metido nada." };
   const id = String(productId);
+  const fresh = product(await m.getProduct(id).catch(() => null));
   for (let attempt = 0; attempt < 2; attempt++) {
     const base = await readTarget(t);
     const lines = linesOf(base).map(toWire);
     const line = lines.find((l) => l.product_id === id);
     const before = line?.quantity ?? 0;
     const after = Math.max(0, fn(before));
+    if (after > before && fresh && !fresh.available) {
+      return { ok: false, reason: "unavailable", message: "Producto no disponible en tu almacén: no se ha metido.", target: describe(t), product: fresh, before, quantity: before };
+    }
     if (line) line.quantity = after;
     else if (after > 0) lines.push({ product_id: id, quantity: after, sources: [] });
     try {
@@ -168,7 +181,7 @@ async function change(productId, fn, only) {
     const now = linesOf(check).find((l) => String(l.product?.id ?? l.product_id) === id);
     const qty = now?.quantity ?? 0;
     const verified = Math.abs(qty - after) < 1e-6;
-    const info = product(now?.product) ?? product(await m.getProduct(id));
+    const info = product(now?.product) ?? fresh;
     if (verified && after !== before) journal(t, info, after - before);
     return {
       ok: verified,
@@ -324,6 +337,8 @@ export async function suggestFromHistory({ orders = 8, minShare = 0.75, maxAgeDa
     items.push({ ...info, id, quantity, share: Math.round(share * 100) / 100 });
   }
   items.sort((a, b) => b.share - a.share || (a.name ?? "").localeCompare(b.name ?? ""));
+  const checked = await withFreshAvailability(items);
+  items.splice(0, items.length, ...checked);
   return {
     orders: picked.length,
     from: picked.at(-1)?.start_date ?? null,
@@ -493,5 +508,5 @@ export async function bought(query, { orders = 30 } = {}) {
     ...(product(s.product) ?? { id }), id, times: s.times, quantity: median(s.qty), last: s.last, match: s.score / words.length,
   }));
   items.sort((a, b) => b.match - a.match || b.times - a.times || String(b.last).localeCompare(String(a.last)));
-  return { query, orders: picked.length, items: items.slice(0, 8) };
+  return { query, orders: picked.length, items: await withFreshAvailability(items.slice(0, 8)) };
 }
